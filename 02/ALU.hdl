@@ -1,0 +1,106 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/02/ALU.hdl
+
+/**
+ * The ALU (Arithmetic Logic Unit).
+ * Computes one of the following functions:
+ * x+y, x-y, y-x, 0, 1, -1, x, y, -x, -y, !x, !y,
+ * x+1, y+1, x-1, y-1, x&y, x|y on two 16-bit inputs, 
+ * according to 6 input bits denoted zx,nx,zy,ny,f,no.
+ * In addition, the ALU computes two 1-bit outputs:
+ * if the ALU output == 0, zr is set to 1; otherwise zr is set to 0;
+ * if the ALU output < 0, ng is set to 1; otherwise ng is set to 0.
+ */
+
+// Implementation: the ALU logic manipulates the x and y inputs
+// and operates on the resulting values, as follows:
+// if (zx == 1) set x = 0        // 16-bit constant
+// if (nx == 1) set x = !x       // bitwise not
+// if (zy == 1) set y = 0        // 16-bit constant
+// if (ny == 1) set y = !y       // bitwise not
+// if (f == 1)  set out = x + y  // integer 2's complement addition
+// if (f == 0)  set out = x & y  // bitwise and
+// if (no == 1) set out = !out   // bitwise not
+// if (out == 0) set zr = 1
+// if (out < 0) set ng = 1
+
+CHIP ALU {
+    IN  
+        x[16], y[16],  // 16-bit inputs        
+        zx, // zero the x input?
+        nx, // negate the x input?
+        zy, // zero the y input?
+        ny, // negate the y input?
+        f,  // compute out = x + y (if 1) or x & y (if 0)
+        no; // negate the out output?
+
+    OUT 
+        out[16], // 16-bit output
+        zr, // 1 if (out == 0), 0 otherwise
+        ng; // 1 if (out < 0),  0 otherwise
+
+    PARTS:
+   // Put you code here:
+
+   /*Lo primero que hare sera hacer la implementacion de la puesta a x=0 si zx=1
+   Esa implementancion la podre reutilizar con y=0 si zy=1*/
+   
+   //Aqui empieza
+   Not16(in=x, out=not16out1);
+   And16(a=x, b=not16out1, out=and16out1); //esto siempre valdra 0
+   Mux16(a=x, b=and16out1, sel=zx, out=zxout);//esta sera la salida de x usando la condicion zx
+   //Aqui termina
+
+   //Luego la implementancion de salida de x con la condicion nx. Obvimente se reutilizara con y y ny
+
+  //Aqui empieza
+  Not16(in=zxout, out=not16out2);
+  Mux16(a=zxout, b=not16out2, sel=nx, out=nxout);
+  //Aqui termina
+
+  //Ahora reutilizo esa logica para y con zy y ny respectivamente
+
+
+  //zy
+  Not16(in=y, out=not16out3);
+  And16(a=y, b=not16out3, out=and16out2);
+  Mux16(a=y, b=and16out2, sel=zy, out=zyout);
+
+  //ny
+  Not16(in=zyout, out=not16out4);
+  Mux16(a=zyout, b=not16out4, sel=ny, out=nyout);
+
+  //Ahora la implementancion con la condicion f
+  Add16(a=nxout, b=nyout, out=add16out1); //x+y
+  And16(a=nxout, b=nyout, out=and16out3); //x&y
+  Mux16(a=and16out3, b=add16out1, sel=f, out=fout);
+
+  //con la condicion no
+  Not16(in=fout, out=notout);
+  Mux16(a=fout, b=notout, sel=no, out=out, out[15]=out15, out[0..7]=outleft, out[8..15]=outrigth);
+
+  //zr
+
+  Or8Way(in=outleft, out=or8way1);
+  Or8Way(in=outrigth, out=or8way2);
+  Or(a=or8way1, b=or8way2, out=outresult);
+
+  //Ahora genero los valores 0 o 1 que tendra zr. Estos valores seran reutilizados para ng
+
+  //Not(in=out15, out=notout1);
+
+  Not(in=outresult, out=notout1);
+  And(a=outresult, b=notout1, out=falsevalue); //will be always 0
+  Or(a=outresult, b=notout1, out=truevalue); //will be always 1
+  Mux(a=truevalue, b=falsevalue, sel=outresult, out=zr); 
+  
+
+  //ng
+  
+  /*El bit que identifica el signo del numero. Si es negativo es 1,
+   si es positivo es cero. En este caso, el bit 15*/
+
+   And(a=out15, b=out15, out=ng);
+}
